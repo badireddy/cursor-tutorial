@@ -1,0 +1,1975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guess the Country</title>
+    <script src="https://unpkg.com/kaboom@3000.0.1/dist/kaboom.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        #game-container {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .game-ui {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            max-width: 1200px;
+            width: 95%;
+            text-align: center;
+        }
+        
+        .world-map {
+            width: 100%;
+            max-width: 1200px;
+            height: 500px;
+            background: url('world-map.gif') center center;
+            background-size: cover;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            border: 3px solid #ddd;
+            position: relative;
+            overflow: hidden;
+            cursor: grab;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        .world-map:active {
+            cursor: grabbing;
+        }
+        
+        .world-map::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 15px;
+            pointer-events: none;
+        }
+        
+        .map-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .map-controls button {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.98);
+            border: 3px solid #007bff;
+            cursor: pointer;
+            font-size: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+            color: #007bff;
+            font-weight: bold;
+        }
+        
+        .map-controls button:hover {
+            background: rgba(255, 255, 255, 1);
+            transform: scale(1.15);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+            border-color: #0056b3;
+            color: #0056b3;
+        }
+        
+        .map-controls button:disabled {
+            background: rgba(200, 200, 200, 0.5);
+            border-color: #ccc;
+            color: #999;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .die-container {
+            margin: 20px 0;
+        }
+        
+        .die {
+            font-size: 70px;
+            margin: 15px;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-block;
+            filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.2));
+        }
+        
+        .die:hover {
+            transform: scale(1.15) rotate(5deg);
+            filter: drop-shadow(0 12px 30px rgba(0, 0, 0, 0.3));
+        }
+        
+        .die.rolling {
+            animation: roll 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        @keyframes roll {
+            0% { transform: rotate(0deg) scale(1); }
+            25% { transform: rotate(90deg) scale(1.2); }
+            50% { transform: rotate(180deg) scale(0.8); }
+            75% { transform: rotate(270deg) scale(1.1); }
+            100% { transform: rotate(360deg) scale(1); }
+        }
+        
+        .clues-container {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 20px;
+            padding: 25px;
+            margin: 25px 0;
+            text-align: left;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+        }
+        
+        .clue {
+            margin: 15px 0;
+            padding: 18px 20px;
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid transparent;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+        
+        .clue::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: all 0.3s ease;
+        }
+        
+        .clue:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            border-color: rgba(102, 126, 234, 0.3);
+        }
+        
+        .clue.hidden {
+            background: rgba(233, 236, 239, 0.8);
+            color: #6c757d;
+            transform: scale(0.98);
+            opacity: 0.7;
+        }
+        
+        .clue.hidden::before {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        }
+        
+        .clue.revealed {
+            animation: revealClue 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        @keyframes revealClue {
+            0% {
+                transform: scale(0.95) translateY(10px);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.02) translateY(-5px);
+            }
+            100% {
+                transform: scale(1) translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .flag-clue {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .flag-image {
+            width: 60px;
+            height: 40px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            object-fit: cover;
+        }
+        
+        .flag-clue .clue-text {
+            flex: 1;
+        }
+        
+        .input-section {
+            margin: 25px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        input[type="text"] {
+            padding: 16px 24px;
+            font-size: 16px;
+            border: 2px solid rgba(102, 126, 234, 0.2);
+            border-radius: 50px;
+            width: 250px;
+            outline: none;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+        
+        input[type="text"]:focus {
+            border-color: #667eea;
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        input[type="text"]:disabled {
+            background: rgba(233, 236, 239, 0.5);
+            color: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .modern-btn {
+            padding: 16px 30px;
+            font-size: 16px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .modern-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        .modern-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+        
+        .modern-btn:hover::before {
+            left: 100%;
+        }
+        
+        .modern-btn:active {
+            transform: translateY(-1px);
+        }
+        
+        .modern-btn:disabled {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+        }
+        
+        .message {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 10px;
+        }
+        
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .attempts {
+            font-size: 14px;
+            color: #666;
+            margin-top: 10px;
+        }
+        
+        .score-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 25px 0;
+            text-align: center;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .score-display {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .score-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .score-number {
+            font-size: 28px;
+            margin: 8px 0;
+            font-weight: bold;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .give-up-section {
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .give-up-btn {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
+        }
+        
+        .give-up-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4);
+        }
+        
+        .superpower-section {
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .superpower-btn {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+        }
+        
+        .superpower-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+        }
+        
+        .superpower-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .superpower-count {
+            font-size: 14px;
+            color: #666;
+            margin-top: 8px;
+        }
+        
+        .flag-reveal {
+            background: #fff3cd;
+            border: 2px solid #ffeaa7;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+            text-align: center;
+        }
+        
+        .flag-reveal img {
+            width: 120px;
+            height: 80px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div class="game-ui">
+            <h1>🌍 Guess the Country 🌍</h1>
+            
+            <div class="score-section">
+                <h3>📊 Game Statistics</h3>
+                <div class="score-display">
+                    <div class="score-item">
+                        <span>✅ Correct</span>
+                        <div class="score-number" id="correct-score">0</div>
+                    </div>
+                    <div class="score-item">
+                        <span>❌ Incorrect</span>
+                        <div class="score-number" id="incorrect-score">0</div>
+                    </div>
+                    <div class="score-item">
+                        <span>🎯 Success Rate</span>
+                        <div class="score-number" id="success-rate">0%</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="world-map" id="world-map">
+                <div class="map-controls">
+                    <button onclick="zoomIn()" title="Zoom In">🔍➕</button>
+                    <button onclick="zoomOut()" title="Zoom Out">🔍➖</button>
+                    <button onclick="resetMap()" title="Reset Map">🔄</button>
+                </div>
+            </div>
+            
+            <div class="die-container">
+                <div class="die" id="die" onclick="rollDie()">🎲</div>
+                <p id="roll-prompt">Click the die to roll and reveal a clue!</p>
+            </div>
+            
+            <div class="clues-container">
+                <h3>Clues:</h3>
+                <div id="clues-list"></div>
+            </div>
+            
+            <div class="superpower-section">
+                <button id="superpower-btn" onclick="revealFlag()" class="modern-btn" style="display: none; background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); box-shadow: 0 6px 20px rgba(255, 107, 107, 0.3);">🚩 Reveal the Flag</button>
+                <div class="superpower-count" id="superpower-count" style="display: none;">🎁 Flag reveal unlocked!</div>
+            </div>
+            
+            <div id="flag-reveal" class="flag-reveal" style="display: none;">
+                <h4>🏁 Here's the country's flag:</h4>
+                <img id="flag-image" src="" alt="Country Flag">
+            </div>
+            
+            <div class="input-section">
+                <input type="text" id="guess-input" placeholder="Enter your guess..." disabled>
+                <button id="guess-btn" onclick="submitGuess()" class="modern-btn" disabled>Guess</button>
+            </div>
+            
+            <div class="give-up-section">
+                <button id="give-up-btn" onclick="giveUp()" class="modern-btn" style="display: none; background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); box-shadow: 0 6px 20px rgba(231, 76, 60, 0.3);">🏳️ Give Up</button>
+            </div>
+            
+            <div id="message" class="message info" style="display: none;"></div>
+            
+            <div class="attempts" id="attempts"></div>
+        </div>
+    </div>
+
+    <script>
+        // Game data structure for countries and their clues
+        const countries = [
+            {
+                name: "France",
+                flag: "https://flagcdn.com/fr.svg",
+                clues: [
+                    "Clue 1: Its capital is Paris.",
+                    "Clue 2: The Eiffel Tower is a major landmark.",
+                    "Clue 3: It is known for its exquisite wine and cheese.",
+                    "Clue 4: It shares a border with Spain, Italy, and Germany.",
+                    "Clue 5: The currency is the Euro.",
+                    "Clue 6: The national symbol is the rooster."
+                ]
+            },
+            {
+                name: "Japan",
+                flag: "https://flagcdn.com/jp.svg",
+                clues: [
+                    "Clue 1: Its capital is Tokyo.",
+                    "Clue 2: It is known for sushi and ramen.",
+                    "Clue 3: Here is the country's flag.",
+                    "Clue 4: The currency is the Yen.",
+                    "Clue 5: It is called the Land of the Rising Sun.",
+                    "Clue 6: Cherry blossoms are a national symbol."
+                ]
+            },
+            {
+                name: "Brazil",
+                flag: "https://flagcdn.com/br.svg",
+                clues: [
+                    "Clue 1: Its capital is Brasília.",
+                    "Clue 2: The Amazon rainforest covers much of the country.",
+                    "Clue 3: Here is the country's flag.",
+                    "Clue 4: The currency is the Real.",
+                    "Clue 5: It is the largest country in South America.",
+                    "Clue 6: The Christ the Redeemer statue is in Rio de Janeiro."
+                ]
+            },
+            {
+                name: "Australia",
+                flag: "https://flagcdn.com/au.svg",
+                clues: [
+                    "Clue 1: Its capital is Canberra.",
+                    "Clue 2: It is home to kangaroos and koalas.",
+                    "Clue 3: Here is the country's flag.",
+                    "Clue 4: The currency is the Australian Dollar.",
+                    "Clue 5: It is both a country and a continent.",
+                    "Clue 6: The Sydney Opera House is a famous landmark."
+                ]
+            },
+            {
+                name: "Egypt",
+                flag: "https://flagcdn.com/eg.svg",
+                clues: [
+                    "Clue 1: Its capital is Cairo.",
+                    "Clue 2: The Great Pyramids are located here.",
+                    "Clue 3: Here is the country's flag.",
+                    "Clue 4: The currency is the Egyptian Pound.",
+                    "Clue 5: It is located in North Africa.",
+                    "Clue 6: Ancient pharaohs ruled this land."
+                ]
+            },
+            {
+                name: "Canada",
+                flag: "https://flagcdn.com/ca.svg",
+                clues: [
+                    "Clue 1: Its capital is Ottawa.",
+                    "Clue 2: It is the second largest country by land area.",
+                    "Clue 3: Here is the country's flag.",
+                    "Clue 4: The currency is the Canadian Dollar.",
+                    "Clue 5: It shares the longest border with the United States.",
+                    "Clue 6: Niagara Falls is partially located here."
+                ]
+            },
+            {
+                name: "Germany",
+                flag: "https://flagcdn.com/de.svg",
+                clues: [
+                    "Clue 1: Its capital is Berlin.",
+                    "Clue 2: It is famous for Oktoberfest and beer.",
+                    "Clue 3: Here is the country's flag.",
+                    "Clue 4: The currency is the Euro.",
+                    "Clue 5: It is known for engineering and cars like BMW and Mercedes.",
+                    "Clue 6: The Black Forest is located here."
+                ]
+            },
+            {
+                name: "Italy",
+                flag: "https://flagcdn.com/it.svg",
+                clues: [
+                    "Clue 1: Its capital is Rome.",
+                    "Clue 2: The Colosseum is an ancient landmark.",
+                    "Clue 3: Here is the country's flag.",
+                    "Clue 4: The currency is the Euro.",
+                    "Clue 5: Pizza and pasta originated here.",
+                    "Clue 6: The Vatican City is within this country."
+                ]
+            },
+            {
+                name: "Spain",
+                clues: [
+                    "Clue 1: Its capital is Madrid.",
+                    "Clue 2: Flamenco dancing originated here.",
+                    "Clue 3: It is famous for bullfighting.",
+                    "Clue 4: The currency is the Euro.",
+                    "Clue 5: The Sagrada Familia is in Barcelona.",
+                    "Clue 6: It shares the Iberian Peninsula with Portugal."
+                ]
+            },
+            {
+                name: "United Kingdom",
+                clues: [
+                    "Clue 1: Its capital is London.",
+                    "Clue 2: Big Ben is a famous clock tower.",
+                    "Clue 3: The currency is the British Pound.",
+                    "Clue 4: It is made up of England, Scotland, Wales, and Northern Ireland.",
+                    "Clue 5: The Beatles were from this country.",
+                    "Clue 6: It has a royal family."
+                ]
+            },
+            {
+                name: "India",
+                clues: [
+                    "Clue 1: Its capital is New Delhi.",
+                    "Clue 2: The Taj Mahal is a famous monument.",
+                    "Clue 3: It is the world's largest democracy.",
+                    "Clue 4: The currency is the Indian Rupee.",
+                    "Clue 5: It is known for Bollywood movies.",
+                    "Clue 6: The Ganges River is sacred here."
+                ]
+            },
+            {
+                name: "China",
+                flag: "https://flagcdn.com/cn.svg",
+                clues: [
+                    "Clue 1: Its capital is Beijing.",
+                    "Clue 2: The Great Wall is a famous landmark.",
+                    "Clue 3: Here is the country's flag.",
+                    "Clue 4: The currency is the Yuan.",
+                    "Clue 5: The Forbidden City is in the capital.",
+                    "Clue 6: It is known for pandas and tea."
+                ]
+            },
+            {
+                name: "Mexico",
+                clues: [
+                    "Clue 1: Its capital is Mexico City.",
+                    "Clue 2: It is famous for tacos and tequila.",
+                    "Clue 3: The ancient Mayan ruins are here.",
+                    "Clue 4: The currency is the Peso.",
+                    "Clue 5: It celebrates Day of the Dead.",
+                    "Clue 6: It shares a border with the United States."
+                ]
+            },
+            {
+                name: "Argentina",
+                clues: [
+                    "Clue 1: Its capital is Buenos Aires.",
+                    "Clue 2: It is famous for tango dancing.",
+                    "Clue 3: The currency is the Argentine Peso.",
+                    "Clue 4: It is the second largest country in South America.",
+                    "Clue 5: It is known for beef and wine.",
+                    "Clue 6: The Andes Mountains run along its western border."
+                ]
+            },
+            {
+                name: "South Africa",
+                clues: [
+                    "Clue 1: Its capital is Pretoria.",
+                    "Clue 2: It has three capital cities.",
+                    "Clue 3: The currency is the Rand.",
+                    "Clue 4: It is known for diamonds and gold.",
+                    "Clue 5: Nelson Mandela was from this country.",
+                    "Clue 6: It is home to the Big Five animals."
+                ]
+            },
+            {
+                name: "Russia",
+                clues: [
+                    "Clue 1: Its capital is Moscow.",
+                    "Clue 2: It is the largest country in the world.",
+                    "Clue 3: The currency is the Ruble.",
+                    "Clue 4: The Kremlin is in the capital.",
+                    "Clue 5: It spans 11 time zones.",
+                    "Clue 6: It is known for vodka and ballet."
+                ]
+            },
+            {
+                name: "United States",
+                flag: "https://flagcdn.com/us.svg",
+                clues: [
+                    "Clue 1: Its capital is Washington, D.C.",
+                    "Clue 2: It has 50 states.",
+                    "Clue 3: Here is the country's flag.",
+                    "Clue 4: The Statue of Liberty is in New York.",
+                    "Clue 5: It is known for Hollywood movies.",
+                    "Clue 6: The Grand Canyon is located here."
+                ]
+            },
+            {
+                name: "Netherlands",
+                clues: [
+                    "Clue 1: Its capital is Amsterdam.",
+                    "Clue 2: It is famous for tulips and windmills.",
+                    "Clue 3: The currency is the Euro.",
+                    "Clue 4: Much of the country is below sea level.",
+                    "Clue 5: It is known for wooden shoes (clogs).",
+                    "Clue 6: The color orange is associated with this country."
+                ]
+            },
+            {
+                name: "Sweden",
+                clues: [
+                    "Clue 1: Its capital is Stockholm.",
+                    "Clue 2: It is known for IKEA furniture.",
+                    "Clue 3: The currency is the Swedish Krona.",
+                    "Clue 4: It is famous for ABBA music.",
+                    "Clue 5: It has the midnight sun in summer.",
+                    "Clue 6: It is home to the Nobel Prize ceremony."
+                ]
+            },
+            {
+                name: "Norway",
+                clues: [
+                    "Clue 1: Its capital is Oslo.",
+                    "Clue 2: It is famous for fjords.",
+                    "Clue 3: The currency is the Norwegian Krone.",
+                    "Clue 4: It is known for Vikings.",
+                    "Clue 5: It has the northern lights (aurora borealis).",
+                    "Clue 6: It is one of the world's happiest countries."
+                ]
+            },
+            {
+                name: "Denmark",
+                clues: [
+                    "Clue 1: Its capital is Copenhagen.",
+                    "Clue 2: It is the home of LEGO.",
+                    "Clue 3: The currency is the Danish Krone.",
+                    "Clue 4: It is known for fairy tales by Hans Christian Andersen.",
+                    "Clue 5: It has the oldest monarchy in Europe.",
+                    "Clue 6: It is famous for pastries and cycling."
+                ]
+            },
+            {
+                name: "Switzerland",
+                clues: [
+                    "Clue 1: Its capital is Bern.",
+                    "Clue 2: It is famous for chocolate and watches.",
+                    "Clue 3: The currency is the Swiss Franc.",
+                    "Clue 4: It is known for the Alps mountains.",
+                    "Clue 5: It has four official languages.",
+                    "Clue 6: It is famous for banking and neutrality."
+                ]
+            },
+            {
+                name: "Austria",
+                clues: [
+                    "Clue 1: Its capital is Vienna.",
+                    "Clue 2: It is the birthplace of Mozart.",
+                    "Clue 3: The currency is the Euro.",
+                    "Clue 4: It is famous for the Alps.",
+                    "Clue 5: It is known for classical music.",
+                    "Clue 6: The Sound of Music was set here."
+                ]
+            },
+            {
+                name: "Belgium",
+                clues: [
+                    "Clue 1: Its capital is Brussels.",
+                    "Clue 2: It is famous for chocolate and waffles.",
+                    "Clue 3: The currency is the Euro.",
+                    "Clue 4: It is known for comic books like Tintin.",
+                    "Clue 5: It has three official languages.",
+                    "Clue 6: The European Union headquarters are here."
+                ]
+            },
+            {
+                name: "Portugal",
+                clues: [
+                    "Clue 1: Its capital is Lisbon.",
+                    "Clue 2: It is famous for port wine.",
+                    "Clue 3: The currency is the Euro.",
+                    "Clue 4: It was a major maritime power.",
+                    "Clue 5: It is known for fado music.",
+                    "Clue 6: It shares the Iberian Peninsula with Spain."
+                ]
+            },
+            {
+                name: "Greece",
+                clues: [
+                    "Clue 1: Its capital is Athens.",
+                    "Clue 2: It is the birthplace of democracy.",
+                    "Clue 3: The currency is the Euro.",
+                    "Clue 4: It is famous for ancient ruins.",
+                    "Clue 5: It has many islands in the Mediterranean.",
+                    "Clue 6: The Parthenon is located here."
+                ]
+            },
+            {
+                name: "Turkey",
+                clues: [
+                    "Clue 1: Its capital is Ankara.",
+                    "Clue 2: Istanbul spans two continents.",
+                    "Clue 3: The currency is the Turkish Lira.",
+                    "Clue 4: It is famous for kebabs and baklava.",
+                    "Clue 5: It has hot air balloon rides in Cappadocia.",
+                    "Clue 6: The Hagia Sophia is located here."
+                ]
+            },
+            {
+                name: "Thailand",
+                clues: [
+                    "Clue 1: Its capital is Bangkok.",
+                    "Clue 2: It is known as the Land of Smiles.",
+                    "Clue 3: The currency is the Thai Baht.",
+                    "Clue 4: It is famous for pad thai and spicy food.",
+                    "Clue 5: It has beautiful beaches and temples.",
+                    "Clue 6: The Grand Palace is in the capital."
+                ]
+            },
+            {
+                name: "Vietnam",
+                clues: [
+                    "Clue 1: Its capital is Hanoi.",
+                    "Clue 2: It is famous for pho soup.",
+                    "Clue 3: The currency is the Vietnamese Dong.",
+                    "Clue 4: It has a long coastline on the South China Sea.",
+                    "Clue 5: It is known for rice terraces.",
+                    "Clue 6: Ho Chi Minh City is the largest city."
+                ]
+            },
+            {
+                name: "South Korea",
+                clues: [
+                    "Clue 1: Its capital is Seoul.",
+                    "Clue 2: It is famous for K-pop music.",
+                    "Clue 3: The currency is the Korean Won.",
+                    "Clue 4: It is known for kimchi and Korean BBQ.",
+                    "Clue 5: It has advanced technology companies.",
+                    "Clue 6: It is home to Samsung and Hyundai."
+                ]
+            },
+            {
+                name: "Singapore",
+                clues: [
+                    "Clue 1: It is a city-state (capital and country are the same).",
+                    "Clue 2: The currency is the Singapore Dollar.",
+                    "Clue 3: It is famous for its clean streets.",
+                    "Clue 4: It has the Merlion statue.",
+                    "Clue 5: It is known for strict laws.",
+                    "Clue 6: It has a famous airport with a waterfall."
+                ]
+            },
+            {
+                name: "Malaysia",
+                clues: [
+                    "Clue 1: Its capital is Kuala Lumpur.",
+                    "Clue 2: The Petronas Towers are here.",
+                    "Clue 3: The currency is the Malaysian Ringgit.",
+                    "Clue 4: It is famous for durian fruit.",
+                    "Clue 5: It has rainforests and beaches.",
+                    "Clue 6: It is known for diverse cultures."
+                ]
+            },
+            {
+                name: "Indonesia",
+                clues: [
+                    "Clue 1: Its capital is Jakarta.",
+                    "Clue 2: It is the world's largest island country.",
+                    "Clue 3: The currency is the Indonesian Rupiah.",
+                    "Clue 4: It is famous for Bali island.",
+                    "Clue 5: It has many active volcanoes.",
+                    "Clue 6: It is home to orangutans."
+                ]
+            },
+            {
+                name: "Philippines",
+                clues: [
+                    "Clue 1: Its capital is Manila.",
+                    "Clue 2: It is an archipelago of over 7,000 islands.",
+                    "Clue 3: The currency is the Philippine Peso.",
+                    "Clue 4: It is famous for beautiful beaches.",
+                    "Clue 5: It is known for karaoke.",
+                    "Clue 6: It has the Chocolate Hills."
+                ]
+            },
+            {
+                name: "New Zealand",
+                clues: [
+                    "Clue 1: Its capital is Wellington.",
+                    "Clue 2: It is famous for sheep and kiwi birds.",
+                    "Clue 3: The currency is the New Zealand Dollar.",
+                    "Clue 4: It was the setting for Lord of the Rings.",
+                    "Clue 5: It has geothermal activity.",
+                    "Clue 6: It is known for rugby and haka dance."
+                ]
+            },
+            {
+                name: "Chile",
+                clues: [
+                    "Clue 1: Its capital is Santiago.",
+                    "Clue 2: It is a long, narrow country.",
+                    "Clue 3: The currency is the Chilean Peso.",
+                    "Clue 4: It has the driest non-polar desert.",
+                    "Clue 5: It is famous for wine production.",
+                    "Clue 6: Easter Island belongs to this country."
+                ]
+            },
+            {
+                name: "Peru",
+                clues: [
+                    "Clue 1: Its capital is Lima.",
+                    "Clue 2: Machu Picchu is located here.",
+                    "Clue 3: The currency is the Peruvian Sol.",
+                    "Clue 4: It is famous for llamas and alpacas.",
+                    "Clue 5: It has the Amazon rainforest.",
+                    "Clue 6: It is known for ceviche and potatoes."
+                ]
+            },
+            {
+                name: "Colombia",
+                clues: [
+                    "Clue 1: Its capital is Bogotá.",
+                    "Clue 2: It is famous for coffee production.",
+                    "Clue 3: The currency is the Colombian Peso.",
+                    "Clue 4: It has Caribbean and Pacific coasts.",
+                    "Clue 5: It is known for emeralds.",
+                    "Clue 6: Shakira is from this country."
+                ]
+            },
+            {
+                name: "Venezuela",
+                clues: [
+                    "Clue 1: Its capital is Caracas.",
+                    "Clue 2: It has the world's highest waterfall.",
+                    "Clue 3: The currency is the Venezuelan Bolívar.",
+                    "Clue 4: It is famous for oil reserves.",
+                    "Clue 5: It has Angel Falls.",
+                    "Clue 6: It is known for arepas."
+                ]
+            },
+            {
+                name: "Morocco",
+                clues: [
+                    "Clue 1: Its capital is Rabat.",
+                    "Clue 2: It is famous for the Sahara Desert.",
+                    "Clue 3: The currency is the Moroccan Dirham.",
+                    "Clue 4: It has the blue city of Chefchaouen.",
+                    "Clue 5: It is known for mint tea.",
+                    "Clue 6: It has ancient medinas and souks."
+                ]
+            },
+            {
+                name: "Kenya",
+                clues: [
+                    "Clue 1: Its capital is Nairobi.",
+                    "Clue 2: It is famous for safaris.",
+                    "Clue 3: The currency is the Kenyan Shilling.",
+                    "Clue 4: It has the Great Rift Valley.",
+                    "Clue 5: It is known for marathon runners.",
+                    "Clue 6: It has Mount Kenya."
+                ]
+            },
+            {
+                name: "Nigeria",
+                clues: [
+                    "Clue 1: Its capital is Abuja.",
+                    "Clue 2: It is Africa's most populous country.",
+                    "Clue 3: The currency is the Nigerian Naira.",
+                    "Clue 4: It is famous for Nollywood movies.",
+                    "Clue 5: It is known for jollof rice.",
+                    "Clue 6: It has the Niger River."
+                ]
+            },
+            {
+                name: "Ghana",
+                clues: [
+                    "Clue 1: Its capital is Accra.",
+                    "Clue 2: It was the first African country to gain independence.",
+                    "Clue 3: The currency is the Ghanaian Cedi.",
+                    "Clue 4: It is famous for cocoa production.",
+                    "Clue 5: It is known for kente cloth.",
+                    "Clue 6: It has the Cape Coast Castle."
+                ]
+            },
+            {
+                name: "Ethiopia",
+                clues: [
+                    "Clue 1: Its capital is Addis Ababa.",
+                    "Clue 2: It is the birthplace of coffee.",
+                    "Clue 3: The currency is the Ethiopian Birr.",
+                    "Clue 4: It has ancient rock-hewn churches.",
+                    "Clue 5: It is known for injera bread.",
+                    "Clue 6: It was never colonized by Europeans."
+                ]
+            },
+            {
+                name: "Tanzania",
+                clues: [
+                    "Clue 1: Its capital is Dodoma.",
+                    "Clue 2: Mount Kilimanjaro is here.",
+                    "Clue 3: The currency is the Tanzanian Shilling.",
+                    "Clue 4: It has the Serengeti National Park.",
+                    "Clue 5: It is famous for Zanzibar island.",
+                    "Clue 6: It is home to the Maasai people."
+                ]
+            },
+            {
+                name: "Uganda",
+                clues: [
+                    "Clue 1: Its capital is Kampala.",
+                    "Clue 2: It is known as the Pearl of Africa.",
+                    "Clue 3: The currency is the Ugandan Shilling.",
+                    "Clue 4: It has Lake Victoria.",
+                    "Clue 5: It is famous for mountain gorillas.",
+                    "Clue 6: It has the source of the Nile River."
+                ]
+            },
+            {
+                name: "Rwanda",
+                clues: [
+                    "Clue 1: Its capital is Kigali.",
+                    "Clue 2: It is known as the Land of a Thousand Hills.",
+                    "Clue 3: The currency is the Rwandan Franc.",
+                    "Clue 4: It is famous for mountain gorillas.",
+                    "Clue 5: It has made remarkable progress since 1994.",
+                    "Clue 6: It is known for its clean cities."
+                ]
+            },
+            {
+                name: "Madagascar",
+                clues: [
+                    "Clue 1: Its capital is Antananarivo.",
+                    "Clue 2: It is the world's fourth largest island.",
+                    "Clue 3: The currency is the Malagasy Ariary.",
+                    "Clue 4: It is famous for lemurs.",
+                    "Clue 5: It has unique wildlife found nowhere else.",
+                    "Clue 6: It is known for vanilla production."
+                ]
+            },
+            {
+                name: "Mauritius",
+                clues: [
+                    "Clue 1: Its capital is Port Louis.",
+                    "Clue 2: It is an island nation in the Indian Ocean.",
+                    "Clue 3: The currency is the Mauritian Rupee.",
+                    "Clue 4: It is famous for beautiful beaches.",
+                    "Clue 5: It is known for the dodo bird (extinct).",
+                    "Clue 6: It has a diverse population."
+                ]
+            },
+            {
+                name: "Seychelles",
+                clues: [
+                    "Clue 1: Its capital is Victoria.",
+                    "Clue 2: It is an archipelago of 115 islands.",
+                    "Clue 3: The currency is the Seychellois Rupee.",
+                    "Clue 4: It is famous for pristine beaches.",
+                    "Clue 5: It is known for giant tortoises.",
+                    "Clue 6: It is a popular honeymoon destination."
+                ]
+            },
+            {
+                name: "Botswana",
+                clues: [
+                    "Clue 1: Its capital is Gaborone.",
+                    "Clue 2: It has the Okavango Delta.",
+                    "Clue 3: The currency is the Botswana Pula.",
+                    "Clue 4: It is famous for diamond mining.",
+                    "Clue 5: It has the Kalahari Desert.",
+                    "Clue 6: It is known for wildlife conservation."
+                ]
+            },
+            {
+                name: "Namibia",
+                clues: [
+                    "Clue 1: Its capital is Windhoek.",
+                    "Clue 2: It has the Namib Desert.",
+                    "Clue 3: The currency is the Namibian Dollar.",
+                    "Clue 4: It has the Skeleton Coast.",
+                    "Clue 5: It is famous for sand dunes.",
+                    "Clue 6: It has the Fish River Canyon."
+                ]
+            },
+            {
+                name: "Zimbabwe",
+                clues: [
+                    "Clue 1: Its capital is Harare.",
+                    "Clue 2: It has Victoria Falls.",
+                    "Clue 3: The currency is the Zimbabwean Dollar.",
+                    "Clue 4: It has ancient stone ruins.",
+                    "Clue 5: It is famous for Great Zimbabwe.",
+                    "Clue 6: It is known for wildlife."
+                ]
+            },
+            {
+                name: "Zambia",
+                clues: [
+                    "Clue 1: Its capital is Lusaka.",
+                    "Clue 2: It shares Victoria Falls with Zimbabwe.",
+                    "Clue 3: The currency is the Zambian Kwacha.",
+                    "Clue 4: It is known as the Copper Belt.",
+                    "Clue 5: It has the Zambezi River.",
+                    "Clue 6: It is famous for walking safaris."
+                ]
+            },
+            {
+                name: "Malawi",
+                clues: [
+                    "Clue 1: Its capital is Lilongwe.",
+                    "Clue 2: It is known as the Warm Heart of Africa.",
+                    "Clue 3: The currency is the Malawian Kwacha.",
+                    "Clue 4: It has Lake Malawi.",
+                    "Clue 5: It is famous for its friendly people.",
+                    "Clue 6: It is known for tea production."
+                ]
+            },
+            {
+                name: "Mozambique",
+                clues: [
+                    "Clue 1: Its capital is Maputo.",
+                    "Clue 2: It has a long coastline on the Indian Ocean.",
+                    "Clue 3: The currency is the Mozambican Metical.",
+                    "Clue 4: It is famous for prawns.",
+                    "Clue 5: It has the Bazaruto Archipelago.",
+                    "Clue 6: It is known for Portuguese influence."
+                ]
+            },
+            {
+                name: "Angola",
+                clues: [
+                    "Clue 1: Its capital is Luanda.",
+                    "Clue 2: It is rich in oil and diamonds.",
+                    "Clue 3: The currency is the Angolan Kwanza.",
+                    "Clue 4: It has the Kalandula Falls.",
+                    "Clue 5: It is famous for its music.",
+                    "Clue 6: It has Portuguese as the official language."
+                ]
+            },
+            {
+                name: "Congo",
+                clues: [
+                    "Clue 1: Its capital is Brazzaville.",
+                    "Clue 2: It has the Congo River.",
+                    "Clue 3: The currency is the Central African CFA Franc.",
+                    "Clue 4: It is famous for rainforests.",
+                    "Clue 5: It is known for gorillas.",
+                    "Clue 6: It has French as the official language."
+                ]
+            },
+            {
+                name: "Democratic Republic of Congo",
+                clues: [
+                    "Clue 1: Its capital is Kinshasa.",
+                    "Clue 2: It is the second largest country in Africa.",
+                    "Clue 3: The currency is the Congolese Franc.",
+                    "Clue 4: It has the Congo River.",
+                    "Clue 5: It is rich in minerals.",
+                    "Clue 6: It is famous for mountain gorillas."
+                ]
+            },
+            {
+                name: "Cameroon",
+                clues: [
+                    "Clue 1: Its capital is Yaoundé.",
+                    "Clue 2: It is known as Africa in Miniature.",
+                    "Clue 3: The currency is the Central African CFA Franc.",
+                    "Clue 4: It has Mount Cameroon.",
+                    "Clue 5: It is famous for football.",
+                    "Clue 6: It has both English and French as official languages."
+                ]
+            },
+            {
+                name: "Gabon",
+                clues: [
+                    "Clue 1: Its capital is Libreville.",
+                    "Clue 2: It is rich in oil and timber.",
+                    "Clue 3: The currency is the Central African CFA Franc.",
+                    "Clue 4: It has extensive rainforests.",
+                    "Clue 5: It is famous for its biodiversity.",
+                    "Clue 6: It has French as the official language."
+                ]
+            },
+            {
+                name: "Equatorial Guinea",
+                clues: [
+                    "Clue 1: Its capital is Malabo.",
+                    "Clue 2: It is Africa's only Spanish-speaking country.",
+                    "Clue 3: The currency is the Central African CFA Franc.",
+                    "Clue 4: It is rich in oil.",
+                    "Clue 5: It has islands and mainland territory.",
+                    "Clue 6: It is one of Africa's smallest countries."
+                ]
+            },
+            {
+                name: "São Tomé and Príncipe",
+                clues: [
+                    "Clue 1: Its capital is São Tomé.",
+                    "Clue 2: It is an island nation in the Gulf of Guinea.",
+                    "Clue 3: The currency is the São Tomé and Príncipe Dobra.",
+                    "Clue 4: It is famous for cocoa production.",
+                    "Clue 5: It has Portuguese as the official language.",
+                    "Clue 6: It is Africa's second smallest country."
+                ]
+            },
+            {
+                name: "Cape Verde",
+                clues: [
+                    "Clue 1: Its capital is Praia.",
+                    "Clue 2: It is an archipelago off the coast of Africa.",
+                    "Clue 3: The currency is the Cape Verdean Escudo.",
+                    "Clue 4: It is famous for its music.",
+                    "Clue 5: It has Portuguese as the official language.",
+                    "Clue 6: It is known for its volcanic islands."
+                ]
+            },
+            {
+                name: "Guinea-Bissau",
+                clues: [
+                    "Clue 1: Its capital is Bissau.",
+                    "Clue 2: It is a small country in West Africa.",
+                    "Clue 3: The currency is the West African CFA Franc.",
+                    "Clue 4: It has Portuguese as the official language.",
+                    "Clue 5: It is famous for cashew production.",
+                    "Clue 6: It has many islands and rivers."
+                ]
+            },
+            {
+                name: "Guinea",
+                clues: [
+                    "Clue 1: Its capital is Conakry.",
+                    "Clue 2: It is rich in bauxite.",
+                    "Clue 3: The currency is the Guinean Franc.",
+                    "Clue 4: It has French as the official language.",
+                    "Clue 5: It is famous for its music.",
+                    "Clue 6: It has the Fouta Djallon highlands."
+                ]
+            },
+            {
+                name: "Sierra Leone",
+                clues: [
+                    "Clue 1: Its capital is Freetown.",
+                    "Clue 2: It is famous for its beaches.",
+                    "Clue 3: The currency is the Sierra Leonean Leone.",
+                    "Clue 4: It has English as the official language.",
+                    "Clue 5: It is known for diamond mining.",
+                    "Clue 6: It has the Tacugama Chimpanzee Sanctuary."
+                ]
+            },
+            {
+                name: "Liberia",
+                clues: [
+                    "Clue 1: Its capital is Monrovia.",
+                    "Clue 2: It was founded by freed American slaves.",
+                    "Clue 3: The currency is the Liberian Dollar.",
+                    "Clue 4: It has English as the official language.",
+                    "Clue 5: It is famous for its flag.",
+                    "Clue 6: It is known for rubber production."
+                ]
+            },
+            {
+                name: "Côte d'Ivoire",
+                clues: [
+                    "Clue 1: Its capital is Yamoussoukro.",
+                    "Clue 2: It is the world's largest cocoa producer.",
+                    "Clue 3: The currency is the West African CFA Franc.",
+                    "Clue 4: It has French as the official language.",
+                    "Clue 5: It is famous for its football team.",
+                    "Clue 6: It is known as the Ivory Coast."
+                ]
+            },
+            {
+                name: "Burkina Faso",
+                clues: [
+                    "Clue 1: Its capital is Ouagadougou.",
+                    "Clue 2: It is a landlocked country in West Africa.",
+                    "Clue 3: The currency is the West African CFA Franc.",
+                    "Clue 4: It has French as the official language.",
+                    "Clue 5: It is famous for its film festival.",
+                    "Clue 6: It is known for cotton production."
+                ]
+            },
+            {
+                name: "Mali",
+                clues: [
+                    "Clue 1: Its capital is Bamako.",
+                    "Clue 2: It was home to the ancient Mali Empire.",
+                    "Clue 3: The currency is the West African CFA Franc.",
+                    "Clue 4: It has French as the official language.",
+                    "Clue 5: It is famous for Timbuktu.",
+                    "Clue 6: It has the Niger River."
+                ]
+            },
+            {
+                name: "Niger",
+                clues: [
+                    "Clue 1: Its capital is Niamey.",
+                    "Clue 2: It is a landlocked country in West Africa.",
+                    "Clue 3: The currency is the West African CFA Franc.",
+                    "Clue 4: It has French as the official language.",
+                    "Clue 5: It is famous for uranium mining.",
+                    "Clue 6: It has the Sahara Desert."
+                ]
+            },
+            {
+                name: "Chad",
+                clues: [
+                    "Clue 1: Its capital is N'Djamena.",
+                    "Clue 2: It is a landlocked country in Central Africa.",
+                    "Clue 3: The currency is the Central African CFA Franc.",
+                    "Clue 4: It has French and Arabic as official languages.",
+                    "Clue 5: It has Lake Chad.",
+                    "Clue 6: It is famous for its diverse ethnic groups."
+                ]
+            },
+            {
+                name: "Central African Republic",
+                clues: [
+                    "Clue 1: Its capital is Bangui.",
+                    "Clue 2: It is a landlocked country in Central Africa.",
+                    "Clue 3: The currency is the Central African CFA Franc.",
+                    "Clue 4: It has French as the official language.",
+                    "Clue 5: It is famous for its rainforests.",
+                    "Clue 6: It is known for its wildlife."
+                ]
+            },
+            {
+                name: "Sudan",
+                clues: [
+                    "Clue 1: Its capital is Khartoum.",
+                    "Clue 2: It has the Nile River.",
+                    "Clue 3: The currency is the Sudanese Pound.",
+                    "Clue 4: It has Arabic and English as official languages.",
+                    "Clue 5: It is famous for the pyramids of Meroë.",
+                    "Clue 6: It has the Red Sea coast."
+                ]
+            },
+            {
+                name: "South Sudan",
+                clues: [
+                    "Clue 1: Its capital is Juba.",
+                    "Clue 2: It is the world's newest country (2011).",
+                    "Clue 3: The currency is the South Sudanese Pound.",
+                    "Clue 4: It has English as the official language.",
+                    "Clue 5: It has the Nile River.",
+                    "Clue 6: It is known for its oil reserves."
+                ]
+            },
+            {
+                name: "Eritrea",
+                clues: [
+                    "Clue 1: Its capital is Asmara.",
+                    "Clue 2: It has a long coastline on the Red Sea.",
+                    "Clue 3: The currency is the Eritrean Nakfa.",
+                    "Clue 4: It has Tigrinya as the official language.",
+                    "Clue 5: It is famous for its architecture.",
+                    "Clue 6: It is known for its independence struggle."
+                ]
+            },
+            {
+                name: "Djibouti",
+                clues: [
+                    "Clue 1: Its capital is Djibouti.",
+                    "Clue 2: It is a small country in the Horn of Africa.",
+                    "Clue 3: The currency is the Djiboutian Franc.",
+                    "Clue 4: It has French and Arabic as official languages.",
+                    "Clue 5: It is famous for its strategic location.",
+                    "Clue 6: It has the Red Sea coast."
+                ]
+            },
+            {
+                name: "Somalia",
+                clues: [
+                    "Clue 1: Its capital is Mogadishu.",
+                    "Clue 2: It has the longest coastline in Africa.",
+                    "Clue 3: The currency is the Somali Shilling.",
+                    "Clue 4: It has Somali as the official language.",
+                    "Clue 5: It is famous for its camels.",
+                    "Clue 6: It is known as the Horn of Africa."
+                ]
+            },
+            {
+                name: "Comoros",
+                clues: [
+                    "Clue 1: Its capital is Moroni.",
+                    "Clue 2: It is an island nation in the Indian Ocean.",
+                    "Clue 3: The currency is the Comorian Franc.",
+                    "Clue 4: It has Arabic, French, and Comorian as official languages.",
+                    "Clue 5: It is famous for its vanilla.",
+                    "Clue 6: It is known for its volcanic islands."
+                ]
+            },
+            {
+                name: "Mayotte",
+                clues: [
+                    "Clue 1: Its capital is Mamoudzou.",
+                    "Clue 2: It is a French overseas department.",
+                    "Clue 3: The currency is the Euro.",
+                    "Clue 4: It is an island in the Indian Ocean.",
+                    "Clue 5: It has French as the official language.",
+                    "Clue 6: It is known for its coral reefs."
+                ]
+            },
+            {
+                name: "Réunion",
+                clues: [
+                    "Clue 1: Its capital is Saint-Denis.",
+                    "Clue 2: It is a French overseas department.",
+                    "Clue 3: The currency is the Euro.",
+                    "Clue 4: It is an island in the Indian Ocean.",
+                    "Clue 5: It has French as the official language.",
+                    "Clue 6: It is known for its volcanic landscape."
+                ]
+            },
+            {
+                name: "Algeria",
+                clues: [
+                    "Clue 1: Its capital is Algiers.",
+                    "Clue 2: It is the largest country in Africa.",
+                    "Clue 3: The currency is the Algerian Dinar.",
+                    "Clue 4: It has Arabic and French as official languages.",
+                    "Clue 5: It is famous for the Sahara Desert.",
+                    "Clue 6: It has a Mediterranean coast."
+                ]
+            },
+            {
+                name: "Tunisia",
+                clues: [
+                    "Clue 1: Its capital is Tunis.",
+                    "Clue 2: It is the northernmost country in Africa.",
+                    "Clue 3: The currency is the Tunisian Dinar.",
+                    "Clue 4: It has Arabic as the official language.",
+                    "Clue 5: It is famous for the ancient city of Carthage.",
+                    "Clue 6: It has a Mediterranean coast."
+                ]
+            },
+            {
+                name: "Libya",
+                clues: [
+                    "Clue 1: Its capital is Tripoli.",
+                    "Clue 2: It is rich in oil reserves.",
+                    "Clue 3: The currency is the Libyan Dinar.",
+                    "Clue 4: It has Arabic as the official language.",
+                    "Clue 5: It is famous for the ancient city of Leptis Magna.",
+                    "Clue 6: It has a Mediterranean coast."
+                ]
+            },
+            {
+                name: "Western Sahara",
+                clues: [
+                    "Clue 1: Its capital is disputed.",
+                    "Clue 2: It is a disputed territory in North Africa.",
+                    "Clue 3: The currency is disputed.",
+                    "Clue 4: It has Arabic as the official language.",
+                    "Clue 5: It is famous for its phosphate reserves.",
+                    "Clue 6: It has a long Atlantic coast."
+                ]
+            }
+        ];
+
+        // Game state variables
+        let currentCountry;
+        let revealedClues = [];
+        let attempts = 0;
+        let gameWon = false;
+        let gameOver = false;
+        let lastRolledNumber = null;
+        let flagRevealed = false;
+        
+        // Score tracking variables
+        let totalCorrect = 0;
+        let totalIncorrect = 0;
+
+        // Die emojis for visual representation
+        const dieEmojis = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+
+        // Initialize the game
+        function initGame() {
+            // Select a random country
+            currentCountry = countries[Math.floor(Math.random() * countries.length)];
+            revealedClues = [];
+            attempts = 0;
+            gameWon = false;
+            gameOver = false;
+            lastRolledNumber = null;
+            flagRevealed = false;
+            
+            // Reset UI
+            document.getElementById('die').textContent = '🎲';
+            document.getElementById('roll-prompt').textContent = 'Click the die to roll and reveal a clue!';
+            document.getElementById('guess-input').value = '';
+            document.getElementById('guess-input').disabled = true;
+            document.getElementById('guess-btn').disabled = true;
+            document.getElementById('message').style.display = 'none';
+            document.getElementById('flag-reveal').style.display = 'none';
+            document.getElementById('superpower-btn').style.display = 'none';
+            document.getElementById('superpower-count').style.display = 'none';
+            document.getElementById('give-up-btn').style.display = 'none';
+            
+            // Display clues (all hidden initially)
+            displayClues();
+            updateAttempts();
+            updateScore();
+        }
+
+        // Display clues with hidden/revealed states
+        function displayClues() {
+            const cluesList = document.getElementById('clues-list');
+            cluesList.innerHTML = '';
+            
+            currentCountry.clues.forEach((clue, index) => {
+                const clueElement = document.createElement('div');
+                clueElement.className = `clue ${revealedClues.includes(index) ? 'revealed' : 'hidden'}`;
+                
+                if (revealedClues.includes(index)) {
+                    // Check if this is a flag clue (we'll make clue 3 the flag clue)
+                    if (index === 2 && currentCountry.flag) {
+                        clueElement.className += ' flag-clue';
+                        clueElement.innerHTML = `
+                            <img src="${currentCountry.flag}" alt="Flag of ${currentCountry.name}" class="flag-image">
+                            <div class="clue-text">${clue}</div>
+                        `;
+                    } else {
+                        clueElement.textContent = clue;
+                    }
+                } else {
+                    clueElement.textContent = `Clue ${index + 1}: [Hidden]`;
+                }
+                
+                cluesList.appendChild(clueElement);
+            });
+        }
+
+        // Roll the die animation and reveal clue
+        function rollDie() {
+            if (gameOver || gameWon) return;
+            
+            const die = document.getElementById('die');
+            const rollPrompt = document.getElementById('roll-prompt');
+            
+            // Add rolling animation
+            die.classList.add('rolling');
+            rollPrompt.textContent = 'Rolling...';
+            
+            // Simulate die rolling animation
+            let rollCount = 0;
+            const maxRolls = 10;
+            const rollInterval = setInterval(() => {
+                const randomFace = Math.floor(Math.random() * 6);
+                die.textContent = dieEmojis[randomFace];
+                rollCount++;
+                
+                if (rollCount >= maxRolls) {
+                    clearInterval(rollInterval);
+                    
+                    // Final roll result
+                    const finalRoll = Math.floor(Math.random() * 6);
+                    die.textContent = dieEmojis[finalRoll];
+                    die.classList.remove('rolling');
+                    
+                    // Check if this is a duplicate roll
+                    if (lastRolledNumber === finalRoll && !flagRevealed) {
+                        // Unlock flag reveal as prize
+                        document.getElementById('superpower-btn').style.display = 'inline-block';
+                        document.getElementById('superpower-count').style.display = 'block';
+                        showMessage(`🎲 Same number rolled twice! 🎁 Flag reveal unlocked as a prize!`, 'info');
+                    }
+                    
+                    // Update last rolled number
+                    lastRolledNumber = finalRoll;
+                    
+                    // Reveal the corresponding clue
+                    revealClue(finalRoll);
+                }
+            }, 100);
+        }
+
+        // Reveal a specific clue
+        function revealClue(clueIndex) {
+            if (!revealedClues.includes(clueIndex)) {
+                revealedClues.push(clueIndex);
+                displayClues();
+                
+                const rollPrompt = document.getElementById('roll-prompt');
+                rollPrompt.textContent = `Clue ${clueIndex + 1} revealed! Enter your guess below.`;
+            } else {
+                // If clue already revealed, inform player but still allow guessing
+                const rollPrompt = document.getElementById('roll-prompt');
+                rollPrompt.textContent = `Clue ${clueIndex + 1} is already revealed, but you can still make a guess!`;
+            }
+            
+            // Always enable input for guessing after any die roll
+            document.getElementById('guess-input').disabled = false;
+            document.getElementById('guess-btn').disabled = false;
+            document.getElementById('guess-input').focus();
+        }
+
+        // Submit player's guess
+        function submitGuess() {
+            const guessInput = document.getElementById('guess-input');
+            const guess = guessInput.value.trim().toLowerCase();
+            const correctAnswer = currentCountry.name.toLowerCase();
+            
+            attempts++;
+            
+            if (guess === correctAnswer) {
+                // Player wins!
+                gameWon = true;
+                totalCorrect++;
+                updateScore();
+                showMessage(`🎉 Congratulations! You guessed correctly! The country was ${currentCountry.name}! 🎉`, 'success');
+                document.getElementById('guess-btn').textContent = 'Play Again';
+                document.getElementById('guess-btn').onclick = initGame;
+                document.getElementById('give-up-btn').style.display = 'none';
+            } else {
+                // Incorrect guess
+                if (revealedClues.length >= 6) {
+                    // All clues revealed, game over - show all clues and answer
+                    gameOver = true;
+                    totalIncorrect++;
+                    updateScore();
+                    showMessage(`❌ Game Over! The correct answer was ${currentCountry.name}. Better luck next time!`, 'error');
+                    
+                    // Reveal all clues that weren't revealed yet
+                    for (let i = 0; i < 6; i++) {
+                        if (!revealedClues.includes(i)) {
+                            revealedClues.push(i);
+                        }
+                    }
+                    displayClues();
+                    
+                    // Show flag if not already revealed
+                    if (!flagRevealed) {
+                        const countryCode = getCountryCode(currentCountry.name);
+                        const flagUrl = `https://flagcdn.com/${countryCode}.svg`;
+                        const flagImage = document.getElementById('flag-image');
+                        const flagReveal = document.getElementById('flag-reveal');
+                        
+                        flagImage.src = flagUrl;
+                        flagImage.alt = `Flag of ${currentCountry.name}`;
+                        flagReveal.style.display = 'block';
+                    }
+                    
+                    document.getElementById('guess-btn').textContent = 'Play Again';
+                    document.getElementById('guess-btn').onclick = initGame;
+                    document.getElementById('give-up-btn').style.display = 'none';
+                } else {
+                    // More clues available
+                    showMessage(`❌ Incorrect! Try rolling the die again for another clue.`, 'error');
+                    guessInput.value = '';
+                    guessInput.disabled = true;
+                    document.getElementById('guess-btn').disabled = true;
+                    document.getElementById('roll-prompt').textContent = 'Click the die to roll again!';
+                    
+                    // Show give up button after 5 clues are revealed
+                    if (revealedClues.length >= 5) {
+                        document.getElementById('give-up-btn').style.display = 'inline-block';
+                    }
+                }
+            }
+            
+            updateAttempts();
+        }
+
+        // Show message to player
+        function showMessage(text, type) {
+            const messageElement = document.getElementById('message');
+            messageElement.textContent = text;
+            messageElement.className = `message ${type}`;
+            messageElement.style.display = 'block';
+        }
+
+        // Update attempts display
+        function updateAttempts() {
+            const attemptsElement = document.getElementById('attempts');
+            attemptsElement.textContent = `Attempts: ${attempts} | Clues revealed: ${revealedClues.length}/6`;
+        }
+        
+        // Update score display
+        function updateScore() {
+            const totalGames = totalCorrect + totalIncorrect;
+            const successRate = totalGames > 0 ? Math.round((totalCorrect / totalGames) * 100) : 0;
+            
+            document.getElementById('correct-score').textContent = totalCorrect;
+            document.getElementById('incorrect-score').textContent = totalIncorrect;
+            document.getElementById('success-rate').textContent = `${successRate}%`;
+        }
+        
+        // Give up function
+        function giveUp() {
+            if (gameWon || gameOver) return;
+            
+            gameOver = true;
+            totalIncorrect++;
+            updateScore();
+            
+            showMessage(`🏳️ You gave up! The correct answer was ${currentCountry.name}.`, 'error');
+            
+            // Reveal all clues
+            for (let i = 0; i < 6; i++) {
+                if (!revealedClues.includes(i)) {
+                    revealedClues.push(i);
+                }
+            }
+            displayClues();
+            
+            // Show flag if not already revealed
+            if (!flagRevealed) {
+                const countryCode = getCountryCode(currentCountry.name);
+                const flagUrl = `https://flagcdn.com/${countryCode}.svg`;
+                const flagImage = document.getElementById('flag-image');
+                const flagReveal = document.getElementById('flag-reveal');
+                
+                flagImage.src = flagUrl;
+                flagImage.alt = `Flag of ${currentCountry.name}`;
+                flagReveal.style.display = 'block';
+            }
+            
+            // Hide give up button and show play again
+            document.getElementById('give-up-btn').style.display = 'none';
+            document.getElementById('guess-btn').textContent = 'Play Again';
+            document.getElementById('guess-btn').onclick = initGame;
+            document.getElementById('guess-btn').disabled = false;
+        }
+        
+        // Reveal flag superpower
+        function revealFlag() {
+            if (flagRevealed || gameWon || gameOver) {
+                return;
+            }
+            
+            flagRevealed = true;
+            
+            // Get country code for flag URL
+            const countryCode = getCountryCode(currentCountry.name);
+            const flagUrl = `https://flagcdn.com/${countryCode}.svg`;
+            
+            // Display the flag
+            const flagImage = document.getElementById('flag-image');
+            const flagReveal = document.getElementById('flag-reveal');
+            
+            flagImage.src = flagUrl;
+            flagImage.alt = `Flag of ${currentCountry.name}`;
+            flagReveal.style.display = 'block';
+            
+            // Hide the button after use
+            document.getElementById('superpower-btn').style.display = 'none';
+            document.getElementById('superpower-count').style.display = 'none';
+            
+            showMessage(`🚩 Flag revealed as a prize!`, 'info');
+        }
+        
+        // Get country code for flag API
+        function getCountryCode(countryName) {
+            const countryCodes = {
+                'France': 'fr',
+                'Japan': 'jp',
+                'Brazil': 'br',
+                'Australia': 'au',
+                'Egypt': 'eg',
+                'Canada': 'ca',
+                'Germany': 'de',
+                'Italy': 'it',
+                'Spain': 'es',
+                'United Kingdom': 'gb',
+                'India': 'in',
+                'China': 'cn',
+                'Mexico': 'mx',
+                'Argentina': 'ar',
+                'South Africa': 'za',
+                'Russia': 'ru',
+                'United States': 'us',
+                'Netherlands': 'nl',
+                'Sweden': 'se',
+                'Norway': 'no',
+                'Denmark': 'dk',
+                'Switzerland': 'ch',
+                'Austria': 'at',
+                'Belgium': 'be',
+                'Portugal': 'pt',
+                'Greece': 'gr',
+                'Turkey': 'tr',
+                'Thailand': 'th',
+                'Vietnam': 'vn',
+                'South Korea': 'kr',
+                'Singapore': 'sg',
+                'Malaysia': 'my',
+                'Indonesia': 'id',
+                'Philippines': 'ph',
+                'New Zealand': 'nz',
+                'Chile': 'cl',
+                'Peru': 'pe',
+                'Colombia': 'co',
+                'Venezuela': 've',
+                'Morocco': 'ma',
+                'Kenya': 'ke',
+                'Nigeria': 'ng',
+                'Ghana': 'gh',
+                'Ethiopia': 'et',
+                'Tanzania': 'tz',
+                'Uganda': 'ug',
+                'Rwanda': 'rw',
+                'Madagascar': 'mg',
+                'Mauritius': 'mu',
+                'Seychelles': 'sc',
+                'Botswana': 'bw',
+                'Namibia': 'na',
+                'Zimbabwe': 'zw',
+                'Zambia': 'zm',
+                'Malawi': 'mw',
+                'Mozambique': 'mz',
+                'Angola': 'ao',
+                'Congo': 'cg',
+                'Democratic Republic of Congo': 'cd',
+                'Cameroon': 'cm',
+                'Gabon': 'ga',
+                'Equatorial Guinea': 'gq',
+                'São Tomé and Príncipe': 'st',
+                'Cape Verde': 'cv',
+                'Guinea-Bissau': 'gw',
+                'Guinea': 'gn',
+                'Sierra Leone': 'sl',
+                'Liberia': 'lr',
+                'Côte d\'Ivoire': 'ci',
+                'Burkina Faso': 'bf',
+                'Mali': 'ml',
+                'Niger': 'ne',
+                'Chad': 'td',
+                'Central African Republic': 'cf',
+                'Sudan': 'sd',
+                'South Sudan': 'ss',
+                'Eritrea': 'er',
+                'Djibouti': 'dj',
+                'Somalia': 'so',
+                'Comoros': 'km',
+                'Mayotte': 'yt',
+                'Réunion': 're',
+                'Algeria': 'dz',
+                'Tunisia': 'tn',
+                'Libya': 'ly',
+                'Western Sahara': 'eh'
+            };
+            
+            return countryCodes[countryName] || 'un'; // Default to UN flag if not found
+        }
+
+        // Handle Enter key in input field
+        document.getElementById('guess-input').addEventListener('keypress', function(event) {
+            if (event.key === 'Enter' && !this.disabled) {
+                submitGuess();
+            }
+        });
+
+        // Map zoom and pan variables
+        let mapScale = 1;
+        let mapX = 0;
+        let mapY = 0;
+        let isDragging = false;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+
+        // Map zoom and pan functions
+        function zoomIn() {
+            if (mapScale < 4) {
+                mapScale *= 1.3;
+                updateMapTransform();
+                showMessage(`🔍 Zoomed in (${Math.round(mapScale * 100)}%)`, 'info');
+            } else {
+                showMessage(`🔍 Maximum zoom reached!`, 'info');
+            }
+        }
+
+        function zoomOut() {
+            if (mapScale > 0.3) {
+                mapScale /= 1.3;
+                updateMapTransform();
+                showMessage(`🔍 Zoomed out (${Math.round(mapScale * 100)}%)`, 'info');
+            } else {
+                showMessage(`🔍 Minimum zoom reached!`, 'info');
+            }
+        }
+
+        function resetMap() {
+            mapScale = 1;
+            mapX = 0;
+            mapY = 0;
+            updateMapTransform();
+            showMessage(`🔄 Map reset to default view`, 'info');
+        }
+
+        function updateMapTransform() {
+            const worldMap = document.getElementById('world-map');
+            worldMap.style.backgroundPosition = `${mapX}px ${mapY}px`;
+            worldMap.style.backgroundSize = `${100 * mapScale}%`;
+            
+            // Update button states
+            const zoomInBtn = document.querySelector('.map-controls button[onclick="zoomIn()"]');
+            const zoomOutBtn = document.querySelector('.map-controls button[onclick="zoomOut()"]');
+            
+            if (zoomInBtn) zoomInBtn.disabled = mapScale >= 4;
+            if (zoomOutBtn) zoomOutBtn.disabled = mapScale <= 0.3;
+        }
+
+        // Mouse event handlers for dragging
+        function initMapControls() {
+            const worldMap = document.getElementById('world-map');
+            
+            worldMap.addEventListener('mousedown', function(e) {
+                isDragging = true;
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+                worldMap.style.cursor = 'grabbing';
+            });
+
+            worldMap.addEventListener('mousemove', function(e) {
+                if (isDragging) {
+                    const deltaX = e.clientX - lastMouseX;
+                    const deltaY = e.clientY - lastMouseY;
+                    
+                    mapX += deltaX;
+                    mapY += deltaY;
+                    
+                    lastMouseX = e.clientX;
+                    lastMouseY = e.clientY;
+                    
+                    updateMapTransform();
+                }
+            });
+
+            worldMap.addEventListener('mouseup', function() {
+                isDragging = false;
+                worldMap.style.cursor = 'grab';
+            });
+
+            worldMap.addEventListener('mouseleave', function() {
+                isDragging = false;
+                worldMap.style.cursor = 'grab';
+            });
+
+            // Mouse wheel zoom
+            worldMap.addEventListener('wheel', function(e) {
+                e.preventDefault();
+                if (e.deltaY < 0) {
+                    zoomIn();
+                } else {
+                    zoomOut();
+                }
+            });
+        }
+
+        // Initialize the game when page loads
+        window.onload = function() {
+            initGame();
+            initMapControls();
+            updateScore(); // Ensure score is displayed on page load
+        };
+    </script>
+</body>
+</html>
